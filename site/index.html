@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>ロックマラソン得点表</title>
+  <meta name="theme-color" content="#2f5d46">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <h1>2026秋 会山行ロックマラソン <span>得点計算</span></h1>
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="log" aria-selected="true">記録</button>
+      <button role="tab" data-tab="score">集計</button>
+      <button role="tab" data-tab="settings">設定</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- 記録 -->
+    <section id="tab-log" class="tab">
+      <div class="seg" id="team-picker" aria-label="チーム"></div>
+
+      <form id="ascent-form" class="card" autocomplete="off">
+        <h2>完登を記録</h2>
+        <fieldset>
+          <legend>登った人</legend>
+          <div id="member-checks" class="chips"></div>
+        </fieldset>
+        <div class="grid">
+          <label class="wide">ルート名
+            <input name="route" required placeholder="例: 小川山レイバック">
+          </label>
+          <label class="wide">エリア
+            <select name="area" id="area-select" required></select>
+          </label>
+          <label>グレード
+            <select name="grade" id="grade-select" required></select>
+          </label>
+          <label>高さ (m)
+            <input name="height" type="number" inputmode="decimal" min="0" step="1" required>
+          </label>
+        </div>
+        <fieldset>
+          <legend>タイプ</legend>
+          <div class="seg small">
+            <label><input type="radio" name="type" value="sport" checked><span>スポート</span></label>
+            <label><input type="radio" name="type" value="mix"><span>ミックス +10</span></label>
+            <label><input type="radio" name="type" value="trad"><span>トラッド +20</span></label>
+          </div>
+        </fieldset>
+        <label class="check"><input type="checkbox" name="tr"> トップロープ（得点なし・RP以上なら完登数に算入）</label>
+        <div id="preview" class="preview"></div>
+        <button type="submit" class="primary">記録する</button>
+      </form>
+
+      <div class="card">
+        <h2>マルチピッチ完登 <small>チームで1回のみ（最大のものを採用）</small></h2>
+        <form id="mp-form" class="inline" autocomplete="off">
+          <input name="route" required placeholder="ルート名">
+          <input name="pitches" type="number" inputmode="numeric" min="2" step="1" required placeholder="ピッチ数">
+          <button type="submit">追加</button>
+        </form>
+        <ul id="mp-list" class="plain"></ul>
+      </div>
+
+      <div class="card">
+        <h2>到着時刻</h2>
+        <p class="muted">競技終了 <span id="end-time-label"></span> を過ぎると、5分ごとに -300 点。</p>
+        <div class="inline">
+          <input id="arrival" type="time">
+          <span id="arrival-penalty" class="muted"></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>記録一覧 <small id="log-count"></small></h2>
+        <div id="ascent-list"></div>
+      </div>
+    </section>
+
+    <!-- 集計 -->
+    <section id="tab-score" class="tab" hidden>
+      <div class="card">
+        <h2>順位</h2>
+        <div class="scroll"><table id="ranking"></table></div>
+      </div>
+      <div id="team-details"></div>
+    </section>
+
+    <!-- 設定 -->
+    <section id="tab-settings" class="tab" hidden>
+      <div class="card">
+        <h2>競技終了時刻</h2>
+        <input id="end-time" type="time">
+      </div>
+      <div class="card">
+        <h2>メンバーと最高RP</h2>
+        <p class="muted">想定OSは最高RPから4段階下（5.8未満・未経験は5.8）で自動計算。ミックスはトラッドの値で評価します。</p>
+        <div id="member-settings"></div>
+      </div>
+      <div class="card">
+        <h2>エリアポイント</h2>
+        <p class="muted">エリアポイントマップの内容を設定済みです。ここでの変更は記録画面のエリア選択肢にそのまま反映されます（名前を変えると、変更前の名前で記録した分はエリアポイントの対象外になります）。</p>
+        <div id="area-settings"></div>
+        <form id="area-form" class="inline" autocomplete="off">
+          <input name="name" required placeholder="エリア名">
+          <input name="points" type="number" inputmode="numeric" step="1" required placeholder="pt">
+          <button type="submit">追加</button>
+        </form>
+      </div>
+      <div class="card">
+        <h2>データ</h2>
+        <p class="muted">記録はこのブラウザ内（localStorage）にだけ保存されます。端末間で集めるときはJSONで書き出し／読み込みしてください。</p>
+        <div class="buttons">
+          <button id="export-json">JSON書き出し</button>
+          <label class="button">JSON読み込み<input id="import-json" type="file" accept="application/json,.json" hidden></label>
+          <button id="export-csv">CSV書き出し</button>
+          <button id="reset" class="danger">初期化</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+  <script src="scoring.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
