@@ -143,3 +143,4 @@ td.total { font-weight: 700; }
   transition: .2s; pointer-events: none; max-width: calc(100% - 32px);
 }
 #toast.show { opacity: 1; transform: translate(-50%, 0); }
+[data-add-member] { margin: 6px 0 16px; }

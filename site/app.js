@@ -37,7 +37,7 @@
       { id: 'A', name: 'A', arrival: '', multipitch: [], members: [
         member('A1', '伊佐見', '5.13b', '5.12b'), member('A2', '竹内', '5.8', '5.7'), member('A3', '奥村', '5.7', '')] },
       { id: 'B', name: 'B', arrival: '', multipitch: [], members: [
-        member('B1', '東', '5.11c', '5.8'), member('B2', '山本', '5.10c', '5.9'), member('B3', '加藤', '5.8', '')] },
+        member('B1', '東', '5.11c', '5.8'), member('B2', '山本', '5.10c', '5.9')] },
       { id: 'C', name: 'C', arrival: '', multipitch: [], members: [
         member('C1', 'ナベ', '5.11b', '5.10d'), member('C2', '高橋', '5.10a', '5.9'), member('C3', '木下', '5.9', '5.8')] },
       { id: 'D', name: 'D', arrival: '', multipitch: [], members: [
@@ -190,7 +190,18 @@
   document.addEventListener('click', (e) => {
     const del = e.target.closest('[data-del]');
     if (!del) return;
-    const [kind, id] = del.dataset.del.split(':');
+    const [kind, id, sub] = del.dataset.del.split(':');
+    if (kind === 'member') {
+      const t = state.teams.find((x) => x.id === id);
+      const m = t && t.members.find((x) => x.id === sub);
+      if (!m) return;
+      const n = state.ascents.filter((a) => a.teamId === t.id && a.memberId === m.id).length;
+      if (!confirm(`チーム${t.name}から「${m.name || '（名前なし）'}」を外しますか？${n ? `\nこの人の完登記録 ${n} 件も削除されます。` : ''}`)) return;
+      t.members = t.members.filter((x) => x.id !== m.id);
+      state.ascents = state.ascents.filter((a) => !(a.teamId === t.id && a.memberId === m.id));
+      commit();
+      return;
+    }
     if (!confirm('この記録を削除しますか？')) return;
     if (kind === 'ascent') state.ascents = state.ascents.filter((a) => a.id !== id);
     if (kind === 'mp') state.teams.forEach((t) => { t.multipitch = t.multipitch.filter((x) => x.id !== id); });
@@ -251,10 +262,12 @@
   // ---- 集計タブ ------------------------------------------------------------
   function renderScore(results) {
     const ranked = [...results].sort((a, b) => a.rank - b.rank);
-    $('#ranking').innerHTML = `<thead><tr><th>順位</th><th>チーム</th><th>ルート</th><th>エリア</th><th>MP</th><th>遅刻</th><th>合計</th></tr></thead>
+    $('#ranking').innerHTML = `<caption class="muted">最終得点 = (チーム得点 ÷ チーム人数) × 3 + 遅刻ペナルティ</caption>
+      <thead><tr><th>順位</th><th>チーム</th><th>ルート</th><th>エリア</th><th>MP</th><th>チーム得点</th><th>人数</th><th>÷人数×3</th><th>遅刻</th><th>最終得点</th></tr></thead>
       <tbody>${ranked.map((r) => `<tr>
         <td>${r.rank}</td><td>${esc(r.team.name)}</td><td>${fmt(r.routeTotal)}</td><td>${fmt(r.areaTotal)}</td>
-        <td>${fmt(r.mpBonus)}</td><td>${r.penalty ? fmt(r.penalty) : '0'}</td><td class="total">${fmt(r.total)}</td></tr>`).join('')}</tbody>`;
+        <td>${fmt(r.mpBonus)}</td><td>${fmt(r.rawTotal)}</td><td>${r.teamSize}</td><td>${fmt(r.adjusted)}</td>
+        <td>${r.penalty ? fmt(r.penalty) : '0'}</td><td class="total">${fmt(r.total)}</td></tr>`).join('')}</tbody>`;
 
     $('#team-details').innerHTML = ranked.map((r) => {
       const areaList = r.areaList.filter((a) => a.name !== OTHER_AREA);
@@ -272,6 +285,7 @@
         <dl class="breakdown">
           <dt>エリア</dt><dd>${areaList.length ? areaList.map((a) => `${esc(a.name)} ${a.points}`).join('、') : 'なし'}（${fmt(r.areaTotal)}）</dd>
           <dt>マルチピッチ</dt><dd>${r.mpBest ? `${esc(r.mpBest.route)} ${r.mpBest.pitches}P（+${r.mpBonus}）` : 'なし'}</dd>
+          <dt>人数補正</dt><dd>${fmt(r.rawTotal)} ÷ ${r.teamSize}人 × 3 = ${fmt(r.adjusted)}</dd>
           <dt>到着</dt><dd>${r.team.arrival ? `${esc(r.team.arrival)}${r.penalty ? `（${r.lateMinutes}分遅れ ${r.penalty}）` : '（時間内）'}` : '未入力'}</dd>
         </dl>
         ${unknown.length ? `<p class="ng">設定にないエリア名があります（0点扱い）：${unknown.map((a) => esc(a.name)).join('、')}</p>` : ''}
@@ -283,16 +297,18 @@
   function renderSettings() {
     $('#end-time').value = state.endTime;
     $('#member-settings').innerHTML = state.teams.map((t) => `
-      <h3>チーム${esc(t.name)}</h3>
+      <h3>チーム${esc(t.name)} <small class="muted">${t.members.length}人</small></h3>
       <div class="scroll"><table class="form-table">
-        <thead><tr><th>名前</th><th>スポートRP</th><th>トラッドRP</th><th>想定OS</th></tr></thead>
+        <thead><tr><th>名前</th><th>スポートRP</th><th>トラッドRP</th><th>想定OS</th><th></th></tr></thead>
         <tbody>${t.members.map((m) => `<tr data-member="${esc(t.id)}:${esc(m.id)}">
           <td><input data-field="name" value="${esc(m.name)}"></td>
           <td><select data-field="sportRP">${gradeOptions(m.sportRP, false)}</select></td>
           <td><select data-field="tradRP">${gradeOptions(m.tradRP, true)}</select></td>
           <td class="muted">${S.memberOS(m, 'sport')} / ${S.memberOS(m, 'trad')}</td>
+          <td><button type="button" class="icon" data-del="member:${esc(t.id)}:${esc(m.id)}" aria-label="メンバーを外す">×</button></td>
         </tr>`).join('')}</tbody>
-      </table></div>`).join('');
+      </table></div>
+      <button type="button" data-add-member="${esc(t.id)}">＋ チーム${esc(t.name)}にメンバーを追加</button>`).join('');
 
     $('#area-settings').innerHTML = state.areas.length ? `<ul class="plain">${state.areas.map((a, i) => `
       <li data-area="${i}"><input data-field="name" value="${esc(a.name)}"><input data-field="points" type="number" inputmode="numeric" value="${esc(a.points)}" class="num">
@@ -308,6 +324,16 @@
     const m = state.teams.find((t) => t.id === tid).members.find((x) => x.id === mid);
     m[e.target.dataset.field] = e.target.value.trim();
     commit();
+  });
+
+  $('#member-settings').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-add-member]');
+    if (!b) return;
+    const t = state.teams.find((x) => x.id === b.dataset.addMember);
+    t.members.push(member(uid(), '', '5.8', ''));
+    commit();
+    const inputs = $('#member-settings').querySelectorAll(`[data-member^="${CSS.escape(t.id)}:"] input[data-field="name"]`);
+    if (inputs.length) inputs[inputs.length - 1].focus();
   });
 
   $('#area-settings').addEventListener('change', (e) => {

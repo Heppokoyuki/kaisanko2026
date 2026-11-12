@@ -157,9 +157,14 @@
 
     const late = latePenalty(team.arrival, endTime);
     const routeTotal = members.reduce((s, m) => s + m.points, 0);
-    const total = routeTotal + areaTotal + mpBonus + late.penalty;
+    // 人数補正 (rule 4): 最終得点 = (チーム得点 / チーム人数) × 3
+    // 遅刻ペナルティ (rule 8) は人数によらない固定値なので補正後に加算する。
+    const teamSize = members.length;
+    const rawTotal = routeTotal + areaTotal + mpBonus;
+    const adjusted = teamSize ? (rawTotal * 3) / teamSize : 0;
+    const total = adjusted + late.penalty;
 
-    return { team, members, minCount, routeTotal, areaList, areaTotal, multipitch: mps, mpBest: best, mpBonus, ...late, total };
+    return { team, members, minCount, routeTotal, areaList, areaTotal, multipitch: mps, mpBest: best, mpBonus, ...late, teamSize, rawTotal, adjusted, total };
   }
 
   function scoreAll(state) {
